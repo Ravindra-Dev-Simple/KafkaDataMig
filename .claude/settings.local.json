@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr:*)",
+      "Bash(gh.exe pr:*)",
+      "Bash(cmd.exe /c \"where gh\")",
+      "Bash(mkdir -p backup_v2)",
+      "Bash(cp csv_to_kafka_producer.py kafka_to_iceberg_consumer.py ingest_test.py kafka_bulk_producer.py requirements.txt test2.py backup_v2/)"
+    ]
+  }
+}

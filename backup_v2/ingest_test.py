@@ -94,17 +94,13 @@ def build_silver_transactions(spark):
         .filter(col("txn_id").isNotNull()) \
         .dropDuplicates(["txn_id"])
 
+    df.writeTo("lakehouse.silver.finacle_transactions") \
+        .tableProperty("format-version", "2") \
+        .partitionedBy("txn_month") \
+        .createOrReplace()
+
     row_count = df.count()
-    try:
-        spark.table("lakehouse.silver.finacle_transactions")
-        df.writeTo("lakehouse.silver.finacle_transactions").overwritePartitions()
-        print(f"  Overwritten partitions: {row_count} rows (partitioned by txn_month)")
-    except Exception:
-        df.writeTo("lakehouse.silver.finacle_transactions") \
-            .tableProperty("format-version", "2") \
-            .partitionedBy("txn_month") \
-            .create()
-        print(f"  Created: {row_count} rows (partitioned by txn_month)")
+    print(f"  Written: {row_count} rows (partitioned by txn_month)")
     return df
 
 
@@ -123,16 +119,12 @@ def build_silver_customers(spark):
         .withColumnRenamed("mobile_masked", "mobile") \
         .withColumnRenamed("email_masked", "email")
 
+    df.writeTo("lakehouse.silver.finacle_customers") \
+        .tableProperty("format-version", "2") \
+        .createOrReplace()
+
     row_count = df.count()
-    try:
-        spark.table("lakehouse.silver.finacle_customers")
-        df.writeTo("lakehouse.silver.finacle_customers").overwritePartitions()
-        print(f"  Overwritten: {row_count} rows")
-    except Exception:
-        df.writeTo("lakehouse.silver.finacle_customers") \
-            .tableProperty("format-version", "2") \
-            .create()
-        print(f"  Created: {row_count} rows")
+    print(f"  Written: {row_count} rows")
     return df
 
 
@@ -154,16 +146,12 @@ def build_silver_loans(spark):
             .otherwise(lit(None))) \
         .withColumn("ingestion_ts", current_timestamp())
 
+    df.writeTo("lakehouse.silver.lms_loans") \
+        .tableProperty("format-version", "2") \
+        .createOrReplace()
+
     row_count = df.count()
-    try:
-        spark.table("lakehouse.silver.lms_loans")
-        df.writeTo("lakehouse.silver.lms_loans").overwritePartitions()
-        print(f"  Overwritten: {row_count} rows")
-    except Exception:
-        df.writeTo("lakehouse.silver.lms_loans") \
-            .tableProperty("format-version", "2") \
-            .create()
-        print(f"  Created: {row_count} rows")
+    print(f"  Written: {row_count} rows")
     return df
 
 
@@ -180,16 +168,12 @@ def build_silver_cibil(spark):
             .withColumn("written_off_amount", col("written_off_amount").cast("decimal(18,2)")) \
             .withColumn("ingestion_ts", current_timestamp())
 
+        df.writeTo("lakehouse.silver.cibil_bureau") \
+            .tableProperty("format-version", "2") \
+            .createOrReplace()
+
         row_count = df.count()
-        try:
-            spark.table("lakehouse.silver.cibil_bureau")
-            df.writeTo("lakehouse.silver.cibil_bureau").overwritePartitions()
-            print(f"  Overwritten: {row_count} rows")
-        except Exception:
-            df.writeTo("lakehouse.silver.cibil_bureau") \
-                .tableProperty("format-version", "2") \
-                .create()
-            print(f"  Created: {row_count} rows")
+        print(f"  Written: {row_count} rows")
         return df
     except Exception as e:
         print(f"  SKIP: cibil_bureau bronze table not found ({e})")
@@ -205,16 +189,12 @@ def build_silver_aml(spark):
             .withColumn("total_amount", col("total_amount").cast("decimal(18,2)")) \
             .withColumn("ingestion_ts", current_timestamp())
 
+        df.writeTo("lakehouse.silver.aml_alerts") \
+            .tableProperty("format-version", "2") \
+            .createOrReplace()
+
         row_count = df.count()
-        try:
-            spark.table("lakehouse.silver.aml_alerts")
-            df.writeTo("lakehouse.silver.aml_alerts").overwritePartitions()
-            print(f"  Overwritten: {row_count} rows")
-        except Exception:
-            df.writeTo("lakehouse.silver.aml_alerts") \
-                .tableProperty("format-version", "2") \
-                .create()
-            print(f"  Created: {row_count} rows")
+        print(f"  Written: {row_count} rows")
         return df
     except Exception as e:
         print(f"  SKIP: aml_alerts bronze table not found ({e})")
@@ -239,15 +219,10 @@ def build_gold_branch_summary(df_txn_silver):
             sum(when(col("is_flagged"), 1).otherwise(0)).alias("flagged_count")
         )
 
-    row_count = df.count()
-    try:
-        spark.table("lakehouse.gold.branch_txn_summary")
-        df.writeTo("lakehouse.gold.branch_txn_summary").overwritePartitions()
-    except Exception:
-        df.writeTo("lakehouse.gold.branch_txn_summary") \
-            .tableProperty("format-version", "2") \
-            .create()
-    print(f"  Written: {row_count} rows")
+    df.writeTo("lakehouse.gold.branch_txn_summary") \
+        .tableProperty("format-version", "2") \
+        .createOrReplace()
+    print(f"  Written: {df.count()} rows")
     df.show(5, truncate=False)
 
 
@@ -264,15 +239,10 @@ def build_gold_npa_summary(df_loan_silver):
             avg("dpd").alias("avg_dpd")
         )
 
-    row_count = df.count()
-    try:
-        spark.table("lakehouse.gold.npa_classification_summary")
-        df.writeTo("lakehouse.gold.npa_classification_summary").overwritePartitions()
-    except Exception:
-        df.writeTo("lakehouse.gold.npa_classification_summary") \
-            .tableProperty("format-version", "2") \
-            .create()
-    print(f"  Written: {row_count} rows")
+    df.writeTo("lakehouse.gold.npa_classification_summary") \
+        .tableProperty("format-version", "2") \
+        .createOrReplace()
+    print(f"  Written: {df.count()} rows")
     df.show(5, truncate=False)
 
 
@@ -316,15 +286,10 @@ def build_gold_customer_360(spark, df_cust_silver, df_txn_silver, df_loan_silver
             col("l.worst_npa_status")
         )
 
-    row_count = df.count()
-    try:
-        spark.table("lakehouse.gold.customer_360")
-        df.writeTo("lakehouse.gold.customer_360").overwritePartitions()
-    except Exception:
-        df.writeTo("lakehouse.gold.customer_360") \
-            .tableProperty("format-version", "2") \
-            .create()
-    print(f"  Written: {row_count} rows")
+    df.writeTo("lakehouse.gold.customer_360") \
+        .tableProperty("format-version", "2") \
+        .createOrReplace()
+    print(f"  Written: {df.count()} rows")
     df.show(5, truncate=False)
 
 

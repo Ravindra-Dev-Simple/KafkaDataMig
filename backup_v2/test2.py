@@ -1,17 +1,11 @@
 from kafka import KafkaProducer
 import json
-import os
 
-# ===== CONFIG (from environment variables) =====
-BOOTSTRAP_SERVER = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "my-cluster-kafka-bootstrap:9092")
-USERNAME = os.environ.get("KAFKA_USERNAME", "app-user")
-PASSWORD = os.environ.get("KAFKA_PASSWORD", "")
+# ===== CONFIG =====
+BOOTSTRAP_SERVER = "my-cluster-kafka-bootstrap:9092"
+USERNAME = "app-user"
+PASSWORD = "bwDqbYGrgC2AKOMuthoUu7Ckkj8tNjtB"
 TOPIC = "finacle-transactions"
-
-if not PASSWORD:
-    print("ERROR: Set KAFKA_PASSWORD environment variable first")
-    print("  export KAFKA_PASSWORD='your-password'")
-    exit(1)
 
 # ===== CREATE PRODUCER =====
 producer = KafkaProducer(
@@ -34,5 +28,8 @@ data = {
 
 # ===== SEND TO KAFKA =====
 producer.send(TOPIC, value=data)
+
+# make sure it's delivered
 producer.flush()
-print("Data pushed to Kafka successfully")
+
+print("✅ Data pushed to Kafka successfully")

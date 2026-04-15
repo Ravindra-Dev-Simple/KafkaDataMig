@@ -10,8 +10,9 @@ import json
 import random
 import argparse
 import time
-from datetime import datetime, timedelta
+import sys
 import os
+from datetime import datetime, timedelta
 
 # -- Configuration --
 BRANCHES = ["BR001", "BR002", "BR003", "BR004", "BR005"]
@@ -148,6 +149,7 @@ def generate_aml_alert(txn):
     return {
         "alert_id": f"AML{txn['txn_date'][:10].replace('-', '')}{random.randint(10000, 99999)}",
         "customer_id": txn["customer_id"],
+        "customer_name": random.choice(NAMES),
         "alert_date": txn["txn_date"],
         "alert_type": alert_type,
         "risk_score": random.randint(60, 99),
@@ -157,7 +159,143 @@ def generate_aml_alert(txn):
         "currency": "INR",
         "description": desc,
         "status": random.choice(["OPEN", "UNDER_REVIEW"]),
+        "assigned_to": random.choice(["Officer_A", "Officer_B", "Officer_C"]),
         "priority": random.choice(["CRITICAL", "HIGH", "MEDIUM"]),
+        "due_date": (datetime.now() + timedelta(days=random.randint(7, 30))).strftime("%Y-%m-%d"),
+        "resolution": "",
+        "resolution_date": "",
+        "sar_filed": random.choice(["Yes", "No", "No"]),
+        "sar_reference": "",
+    }
+
+
+CITIES = ["Mumbai", "Delhi", "Bangalore", "Chennai", "Hyderabad", "Pune", "Kolkata", "Ahmedabad"]
+STATES = ["Maharashtra", "Delhi", "Karnataka", "Tamil Nadu", "Telangana", "Maharashtra", "West Bengal", "Gujarat"]
+OCCUPATIONS = ["Salaried", "Self-Employed", "Business", "Professional", "Retired", "Student"]
+ACCOUNT_TYPES = ["SAVINGS", "CURRENT", "FD", "RD", "NRE"]
+KYC_STATUSES = ["VERIFIED", "VERIFIED", "VERIFIED", "PENDING", "EXPIRED"]
+RISK_CATEGORIES = ["LOW", "LOW", "LOW", "MEDIUM", "MEDIUM", "HIGH"]
+GENDERS = ["Male", "Female"]
+
+
+def generate_customer(cust_id):
+    """Generate a fake customer record"""
+    name = random.choice(NAMES) + " " + random.choice(["Kumar", "Singh", "Sharma", "Patel", "Reddy", "Nair", "Das", "Joshi"])
+    city_idx = random.randint(0, len(CITIES) - 1)
+    open_date = datetime(2020, 1, 1) + timedelta(days=random.randint(0, 2000))
+    kyc_date = open_date + timedelta(days=random.randint(30, 365))
+    dob = datetime(1960, 1, 1) + timedelta(days=random.randint(0, 15000))
+
+    return {
+        "customer_id": cust_id,
+        "name": name,
+        "pan": f"{''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ', k=5))}{random.randint(1000, 9999)}{''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ', k=1))}",
+        "aadhaar_masked": f"XXXX-XXXX-{random.randint(1000, 9999)}",
+        "mobile": f"9{random.randint(100000000, 999999999)}",
+        "email": f"{name.split()[0].lower()}{random.randint(1, 999)}@example.com",
+        "dob": dob.strftime("%Y-%m-%d"),
+        "gender": random.choice(GENDERS),
+        "kyc_status": random.choice(KYC_STATUSES),
+        "kyc_date": kyc_date.strftime("%Y-%m-%d"),
+        "risk_category": random.choice(RISK_CATEGORIES),
+        "branch_code": random.choice(BRANCHES),
+        "account_type": random.choice(ACCOUNT_TYPES),
+        "account_number": f"ACCT{str(random.randint(100000, 999999))}",
+        "account_open_date": open_date.strftime("%Y-%m-%d"),
+        "occupation": random.choice(OCCUPATIONS),
+        "annual_income": str(round(random.uniform(200000, 5000000), 2)),
+        "address_city": CITIES[city_idx],
+        "address_state": STATES[city_idx],
+        "nominee_name": random.choice(NAMES) + " " + random.choice(["Kumar", "Singh", "Sharma"]),
+    }
+
+
+LOAN_TYPE_LIST = ["HOME_LOAN", "PERSONAL_LOAN", "CAR_LOAN", "BUSINESS_LOAN", "EDUCATION_LOAN"]
+NPA_STATUSES = ["STANDARD", "STANDARD", "STANDARD", "SMA-0", "SMA-1", "SMA-2", "SUBSTANDARD", "DOUBTFUL", "LOSS"]
+ASSET_CLASSIFICATIONS = ["STANDARD", "STANDARD", "NPA", "NPA"]
+COLLATERAL_TYPES = ["PROPERTY", "GOLD", "FD", "SHARES", "NONE"]
+RECOVERY_ACTIONS = ["NONE", "NOTICE_SENT", "SARFAESI", "DRT", "LOK_ADALAT", "OTS"]
+
+
+def generate_npa_record(cust_id, seq):
+    """Generate a fake NPA/loan record"""
+    sanctioned = round(random.uniform(100000, 10000000), 2)
+    outstanding_principal = round(sanctioned * random.uniform(0.3, 0.95), 2)
+    outstanding_interest = round(outstanding_principal * random.uniform(0.01, 0.15), 2)
+    total_outstanding = round(outstanding_principal + outstanding_interest, 2)
+    collateral_value = round(sanctioned * random.uniform(0.5, 1.5), 2)
+    dpd = random.choice([0, 0, 0, 0, 15, 30, 60, 90, 120, 180, 365])
+    npa_status = "STANDARD" if dpd < 90 else random.choice(["SUBSTANDARD", "DOUBTFUL", "LOSS"])
+    npa_date = "" if dpd < 90 else (datetime.now() - timedelta(days=dpd)).strftime("%Y-%m-%d")
+    provision_pct = 0.4 if dpd < 90 else random.choice([15.0, 25.0, 40.0, 100.0])
+    provision_amt = round(total_outstanding * provision_pct / 100, 2)
+    recovery_amt = round(total_outstanding * random.uniform(0, 0.3), 2) if dpd >= 90 else 0
+
+    return {
+        "report_date": datetime.now().strftime("%Y-%m-%d"),
+        "loan_id": f"LN{str(seq).zfill(6)}",
+        "customer_id": cust_id,
+        "customer_name": random.choice(NAMES),
+        "loan_type": random.choice(LOAN_TYPE_LIST),
+        "branch_code": random.choice(BRANCHES),
+        "sanctioned_amount": str(sanctioned),
+        "outstanding_principal": str(outstanding_principal),
+        "outstanding_interest": str(outstanding_interest),
+        "total_outstanding": str(total_outstanding),
+        "dpd": str(dpd),
+        "asset_classification": "STANDARD" if dpd < 90 else "NPA",
+        "npa_status": npa_status,
+        "npa_date": npa_date,
+        "provision_required_pct": str(provision_pct),
+        "provision_amount": str(provision_amt),
+        "collateral_type": random.choice(COLLATERAL_TYPES),
+        "collateral_value": str(collateral_value),
+        "net_npa_exposure": str(round(total_outstanding - collateral_value, 2)),
+        "recovery_action": "NONE" if dpd < 90 else random.choice(RECOVERY_ACTIONS),
+        "recovery_amount": str(recovery_amt),
+        "last_review_date": (datetime.now() - timedelta(days=random.randint(1, 90))).strftime("%Y-%m-%d"),
+        "next_review_date": (datetime.now() + timedelta(days=random.randint(30, 180))).strftime("%Y-%m-%d"),
+        "relationship_manager": f"RM_{random.randint(1, 20):03d}",
+        "remarks": random.choice(["Regular repayment", "Under monitoring", "Recovery in progress", "Legal action initiated", ""]),
+    }
+
+
+def generate_cibil_record(cust_id, seq):
+    """Generate a fake CIBIL bureau record"""
+    total_accounts = random.randint(1, 15)
+    active = random.randint(1, total_accounts)
+    closed = total_accounts - active
+    overdue = random.randint(0, min(3, active))
+    score = random.randint(300, 900)
+    total_out = round(random.uniform(50000, 5000000), 2)
+    secured = round(total_out * random.uniform(0.4, 0.8), 2)
+    unsecured = round(total_out - secured, 2)
+
+    return {
+        "report_id": f"CBR{str(seq).zfill(6)}",
+        "customer_id": cust_id,
+        "customer_name": random.choice(NAMES),
+        "pan": f"{''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ', k=5))}{random.randint(1000, 9999)}{''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ', k=1))}",
+        "cibil_score": str(score),
+        "score_date": (datetime.now() - timedelta(days=random.randint(1, 90))).strftime("%Y-%m-%d"),
+        "total_accounts": str(total_accounts),
+        "active_accounts": str(active),
+        "closed_accounts": str(closed),
+        "overdue_accounts": str(overdue),
+        "total_outstanding": str(total_out),
+        "secured_outstanding": str(secured),
+        "unsecured_outstanding": str(unsecured),
+        "credit_utilization_pct": str(random.randint(10, 95)),
+        "enquiry_count_6m": str(random.randint(0, 8)),
+        "enquiry_count_12m": str(random.randint(0, 15)),
+        "dpd_30_count": str(random.randint(0, 5)),
+        "dpd_60_count": str(random.randint(0, 3)),
+        "dpd_90_count": str(random.randint(0, 2)),
+        "written_off_amount": str(round(random.uniform(0, 100000), 2) if random.random() < 0.1 else 0),
+        "suit_filed_count": str(random.randint(0, 2) if random.random() < 0.05 else 0),
+        "wilful_defaulter": random.choice(["No", "No", "No", "No", "Yes"]),
+        "report_pull_date": datetime.now().strftime("%Y-%m-%d"),
+        "report_source": random.choice(["CIBIL", "EQUIFAX", "EXPERIAN", "CRIF"]),
     }
 
 
@@ -172,27 +310,66 @@ def main():
     base_date = datetime(2026, 3, 15)
     transactions = []
     aml_alerts = []
+    customers = []
+    npa_records = []
+    cibil_records = []
 
-    print(f"Generating {args.count} transactions across {args.days} days...")
+    # --- Generate fake data for ALL 5 topics ---
+    num_customers = min(args.count // 20, 500)  # ~5% of txn count
+    num_loans = min(args.count // 10, 200)
+
+    print(f"Generating fake data...")
+    print(f"  Transactions: {args.count} across {args.days} days")
+    print(f"  Customers:    {num_customers}")
+    print(f"  Loans/NPA:    {num_loans}")
+
+    # 1. Customers
+    used_cust_ids = CUSTOMER_IDS[:num_customers]
+    for cid in used_cust_ids:
+        customers.append(generate_customer(cid))
+
+    # 2. Transactions + AML alerts
     for i in range(1, args.count + 1):
         day_offset = random.randint(0, args.days - 1)
         txn_date = base_date + timedelta(days=day_offset)
         txn = generate_transaction(i, txn_date)
         transactions.append(txn)
-
-        # Generate AML alert for flagged transactions
         if txn["status"] == "FLAGGED":
             aml_alerts.append(generate_aml_alert(txn))
 
-    print(f"Generated {len(transactions)} transactions, {len(aml_alerts)} AML alerts")
+    # 3. NPA / Loan records
+    for i in range(1, num_loans + 1):
+        cid = random.choice(used_cust_ids)
+        npa_records.append(generate_npa_record(cid, i))
+
+    # 4. CIBIL bureau records (one per customer)
+    for i, cid in enumerate(used_cust_ids, 1):
+        cibil_records.append(generate_cibil_record(cid, i))
+
+    print(f"  AML Alerts:   {len(aml_alerts)}")
+    print(f"  CIBIL:        {len(cibil_records)}")
 
     if args.dry_run:
-        for txn in transactions[:5]:
-            print(json.dumps(txn, indent=2))
-        print(f"... and {len(transactions) - 5} more")
+        print("\n--- Sample Transaction ---")
+        print(json.dumps(transactions[0], indent=2))
+        print("\n--- Sample Customer ---")
+        print(json.dumps(customers[0], indent=2))
+        print("\n--- Sample NPA ---")
+        print(json.dumps(npa_records[0], indent=2))
+        print("\n--- Sample CIBIL ---")
+        print(json.dumps(cibil_records[0], indent=2))
+        if aml_alerts:
+            print("\n--- Sample AML Alert ---")
+            print(json.dumps(aml_alerts[0], indent=2))
         return
 
-    # Publish to Kafka
+    # --- Publish to Kafka ---
+    kafka_password = os.environ.get("KAFKA_PASSWORD", "")
+    if not kafka_password:
+        print("ERROR: Set KAFKA_PASSWORD environment variable first")
+        print("  export KAFKA_PASSWORD='your-password'")
+        sys.exit(1)
+
     try:
         from kafka import KafkaProducer
 
@@ -201,60 +378,64 @@ def main():
             security_protocol=os.environ.get("KAFKA_SECURITY_PROTOCOL", "SASL_PLAINTEXT"),
             sasl_mechanism=os.environ.get("KAFKA_SASL_MECHANISM", "SCRAM-SHA-512"),
             sasl_plain_username=os.environ.get("KAFKA_USERNAME", "app-user"),
-            sasl_plain_password=os.environ.get("KAFKA_PASSWORD", ""),
-
+            sasl_plain_password=kafka_password,
             value_serializer=lambda v: json.dumps(v).encode("utf-8"),
             key_serializer=lambda k: k.encode("utf-8"),
-
             acks="all",
             retries=3,
             batch_size=32768,
             linger_ms=10,
-            api_version_auto_timeout_ms=30000,
             request_timeout_ms=60000,
-
-            # 🔥 bonus improvement
-            compression_type="gzip"
-)
+            compression_type="gzip",
+        )
 
         start = time.time()
 
-        # Publish transactions
+        # Publish all 5 topics
         for txn in transactions:
-            producer.send(
-                "finacle-transactions",
-                key=txn["txn_id"],
-                value=txn,
-            )
+            producer.send("finacle-transactions", key=txn["txn_id"], value=txn)
 
-        # Publish AML alerts
+        for cust in customers:
+            producer.send("finacle-customers", key=cust["customer_id"], value=cust)
+
         for alert in aml_alerts:
-            producer.send(
-                "aml-alerts",
-                key=alert["alert_id"],
-                value=alert,
-            )
+            producer.send("aml-alerts", key=alert["alert_id"], value=alert)
+
+        for npa in npa_records:
+            producer.send("npa-report", key=npa["loan_id"], value=npa)
+
+        for cibil in cibil_records:
+            producer.send("cibil-bureau", key=cibil["report_id"], value=cibil)
 
         producer.flush()
         elapsed = time.time() - start
 
-        print(f"\nPublished to Kafka:")
-        print(f"  Transactions: {len(transactions)} messages to 'finacle-transactions'")
-        print(f"  AML Alerts:   {len(aml_alerts)} messages to 'aml-alerts'")
-        print(f"  Time:         {elapsed:.2f}s")
-        print(f"  Throughput:   {len(transactions) / elapsed:.0f} msg/s")
+        total_msgs = len(transactions) + len(customers) + len(aml_alerts) + len(npa_records) + len(cibil_records)
+        print(f"\nPublished to Kafka ({elapsed:.2f}s, {total_msgs / elapsed:.0f} msg/s):")
+        print(f"  finacle-transactions: {len(transactions)} messages")
+        print(f"  finacle-customers:    {len(customers)} messages")
+        print(f"  aml-alerts:           {len(aml_alerts)} messages")
+        print(f"  npa-report:           {len(npa_records)} messages")
+        print(f"  cibil-bureau:         {len(cibil_records)} messages")
+        print(f"  TOTAL:                {total_msgs} messages")
 
     except Exception as e:
         print(f"ERROR: {e}. Falling back to writing JSON files...")
         import tempfile
         tmpdir = tempfile.gettempdir()
-        with open(os.path.join(tmpdir, "transactions.json"), "w") as f:
-            for txn in transactions:
-                f.write(json.dumps(txn) + "\n")
-        with open(os.path.join(tmpdir, "aml_alerts.json"), "w") as f:
-            for alert in aml_alerts:
-                f.write(json.dumps(alert) + "\n")
-        print(f"Written to {tmpdir}\\transactions.json and {tmpdir}\\aml_alerts.json")
+        all_data = {
+            "transactions": transactions,
+            "customers": customers,
+            "aml_alerts": aml_alerts,
+            "npa_records": npa_records,
+            "cibil_records": cibil_records,
+        }
+        for name, records in all_data.items():
+            filepath = os.path.join(tmpdir, f"{name}.json")
+            with open(filepath, "w") as f:
+                for rec in records:
+                    f.write(json.dumps(rec) + "\n")
+            print(f"  Written {len(records)} records to {filepath}")
 
 
 if __name__ == "__main__":

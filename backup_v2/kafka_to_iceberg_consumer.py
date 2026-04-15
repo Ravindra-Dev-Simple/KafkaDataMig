@@ -244,25 +244,15 @@ def process_batch(spark, kafka_options, topic, schema, iceberg_table, key_column
         .withColumn("_ingestion_ts", current_timestamp()) \
         .withColumn("_source", lit("kafka"))
 
-    # Deduplicate by key column within this batch
-    df_parsed = df_parsed.dropDuplicates([key_column])
-
     row_count = df_parsed.count()
-    print(f"  Parsed {row_count} messages (after dedup)")
+    print(f"  Parsed {row_count} messages")
 
-    # Write to Iceberg Bronze table — create if not exists, append otherwise
-    try:
-        spark.table(iceberg_table)
-        # Table exists — append new data
-        df_parsed.writeTo(iceberg_table).append()
-        print(f"  Appended to {iceberg_table}: {row_count} rows")
-    except Exception:
-        # Table does not exist — create it
-        df_parsed.writeTo(iceberg_table) \
-            .tableProperty("format-version", "2") \
-            .create()
-        print(f"  Created {iceberg_table}: {row_count} rows")
+    # Write to Iceberg Bronze table
+    df_parsed.writeTo(iceberg_table) \
+        .tableProperty("format-version", "2") \
+        .createOrReplace()
 
+    print(f"  Written to {iceberg_table}: {row_count} rows")
     return row_count
 
 
@@ -304,8 +294,7 @@ def main():
                         help="batch = process all available then stop; streaming = continuous")
     parser.add_argument("--topic", default=None,
                         help="Only process a specific topic (e.g., finacle-transactions)")
-    default_checkpoint = os.path.join(os.environ.get("TEMP", "/tmp"), "kafka-iceberg-checkpoints")
-    parser.add_argument("--checkpoint-dir", default=default_checkpoint,
+    parser.add_argument("--checkpoint-dir", default="/tmp/kafka-iceberg-checkpoints",
                         help="Checkpoint directory for streaming mode")
     args = parser.parse_args()
 
