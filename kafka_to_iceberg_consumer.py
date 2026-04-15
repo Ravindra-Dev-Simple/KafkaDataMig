@@ -172,7 +172,7 @@ def get_kafka_options():
     protocol = os.environ.get("KAFKA_SECURITY_PROTOCOL", "SASL_PLAINTEXT")
     mechanism = os.environ.get("KAFKA_SASL_MECHANISM", "SCRAM-SHA-512")
     username = os.environ.get("KAFKA_USERNAME", "app-user")
-    password = os.environ.get("KAFKA_PASSWORD", "")
+    password = os.environ.get("KAFKA_PASSWORD", "bwDqbYGrgC2AKOMuthoUu7Ckkj8tNjtB")
 
     jaas_config = (
         f'org.apache.kafka.common.security.scram.ScramLoginModule required '
@@ -192,8 +192,8 @@ def get_kafka_options():
 def create_spark_session():
     """Create SparkSession with Iceberg + MinIO configuration."""
     minio_endpoint = os.environ.get("MINIO_ENDPOINT", "http://minio.lakehouse-data.svc.cluster.local:9000")
-    minio_access_key = os.environ.get("MINIO_ACCESS_KEY", "admin")
-    minio_secret_key = os.environ.get("MINIO_SECRET_KEY", "")
+    minio_access_key = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
+    minio_secret_key = os.environ.get("MINIO_SECRET_KEY", "minioadmin")
     warehouse_path = os.environ.get("ICEBERG_WAREHOUSE", "s3a://lakehouse/warehouse")
 
     spark = SparkSession.builder \
@@ -201,10 +201,11 @@ def create_spark_session():
         .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
         .config("spark.sql.catalog.lakehouse", "org.apache.iceberg.spark.SparkCatalog") \
         .config("spark.sql.catalog.lakehouse.type", "hadoop") \
-        .config("spark.sql.catalog.lakehouse.warehouse", warehouse_path) \
-        .config("spark.hadoop.fs.s3a.endpoint", minio_endpoint) \
-        .config("spark.hadoop.fs.s3a.access.key", minio_access_key) \
-        .config("spark.hadoop.fs.s3a.secret.key", minio_secret_key) \
+        .config("spark.hadoop.fs.s3a.endpoint", "http://localhost:9000") \
+        .config("spark.hadoop.fs.s3a.access.key", "minioadmin") \
+        .config("spark.hadoop.fs.s3a.secret.key", "minioadmin") \
+        .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+        .config("spark.sql.catalog.demo.warehouse", "s3a://warehouse/") \
         .config("spark.hadoop.fs.s3a.path.style.access", "true") \
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
         .config("spark.sql.defaultCatalog", "lakehouse") \
