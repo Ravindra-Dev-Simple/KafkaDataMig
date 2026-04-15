@@ -197,11 +197,13 @@ def main():
         from kafka import KafkaProducer
 
         producer = KafkaProducer(
-            bootstrap_servers=os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "my-cluster-kafka-bootstrap:9092"),
-            security_protocol=os.environ.get("KAFKA_SECURITY_PROTOCOL", "SASL_PLAINTEXT"),
-            sasl_mechanism=os.environ.get("KAFKA_SASL_MECHANISM", "SCRAM-SHA-512"),
-            sasl_plain_username=os.environ.get("KAFKA_USERNAME", "app-user"),
-            sasl_plain_password=os.environ.get("KAFKA_PASSWORD", ""),
+            bootstrap_servers="my-cluster-kafka-bootstrap:9092",
+
+            # 👇 ADD THIS BLOCK
+            security_protocol="SASL_PLAINTEXT",  # or SASL_SSL if TLS enabled
+            sasl_mechanism="SCRAM-SHA-512",
+            sasl_plain_username="app-user",
+            sasl_plain_password="bwDqbYGrgC2AKOMuthoUu7Ckkj8tNjtB",
 
             value_serializer=lambda v: json.dumps(v).encode("utf-8"),
             key_serializer=lambda k: k.encode("utf-8"),
@@ -216,8 +218,6 @@ def main():
             # 🔥 bonus improvement
             compression_type="gzip"
 )
-
-        start = time.time()
 
         # Publish transactions
         for txn in transactions:
@@ -236,6 +236,7 @@ def main():
             )
 
         producer.flush()
+        start = time.time()
         elapsed = time.time() - start
 
         print(f"\nPublished to Kafka:")
