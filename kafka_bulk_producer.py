@@ -212,7 +212,6 @@ def generate_customer(cust_id):
 
 LOAN_TYPE_LIST = ["HOME_LOAN", "PERSONAL_LOAN", "CAR_LOAN", "BUSINESS_LOAN", "EDUCATION_LOAN"]
 NPA_STATUSES = ["STANDARD", "STANDARD", "STANDARD", "SMA-0", "SMA-1", "SMA-2", "SUBSTANDARD", "DOUBTFUL", "LOSS"]
-ASSET_CLASSIFICATIONS = ["STANDARD", "STANDARD", "NPA", "NPA"]
 COLLATERAL_TYPES = ["PROPERTY", "GOLD", "FD", "SHARES", "NONE"]
 RECOVERY_ACTIONS = ["NONE", "NOTICE_SENT", "SARFAESI", "DRT", "LOK_ADALAT", "OTS"]
 
@@ -310,132 +309,90 @@ def main():
     base_date = datetime(2026, 3, 15)
     transactions = []
     aml_alerts = []
-    customers = []
-    npa_records = []
-    cibil_records = []
 
-    # --- Generate fake data for ALL 5 topics ---
-    num_customers = min(args.count // 20, 500)  # ~5% of txn count
-    num_loans = min(args.count // 10, 200)
-
-    print(f"Generating fake data...")
-    print(f"  Transactions: {args.count} across {args.days} days")
-    print(f"  Customers:    {num_customers}")
-    print(f"  Loans/NPA:    {num_loans}")
-
-    # 1. Customers
-    used_cust_ids = CUSTOMER_IDS[:num_customers]
-    for cid in used_cust_ids:
-        customers.append(generate_customer(cid))
-
-    # 2. Transactions + AML alerts
+    print(f"Generating {args.count} transactions across {args.days} days...")
     for i in range(1, args.count + 1):
         day_offset = random.randint(0, args.days - 1)
         txn_date = base_date + timedelta(days=day_offset)
         txn = generate_transaction(i, txn_date)
         transactions.append(txn)
+
+        # Generate AML alert for flagged transactions
         if txn["status"] == "FLAGGED":
             aml_alerts.append(generate_aml_alert(txn))
 
-    # 3. NPA / Loan records
-    for i in range(1, num_loans + 1):
-        cid = random.choice(used_cust_ids)
-        npa_records.append(generate_npa_record(cid, i))
-
-    # 4. CIBIL bureau records (one per customer)
-    for i, cid in enumerate(used_cust_ids, 1):
-        cibil_records.append(generate_cibil_record(cid, i))
-
-    print(f"  AML Alerts:   {len(aml_alerts)}")
-    print(f"  CIBIL:        {len(cibil_records)}")
+    print(f"Generated {len(transactions)} transactions, {len(aml_alerts)} AML alerts")
 
     if args.dry_run:
-        print("\n--- Sample Transaction ---")
-        print(json.dumps(transactions[0], indent=2))
-        print("\n--- Sample Customer ---")
-        print(json.dumps(customers[0], indent=2))
-        print("\n--- Sample NPA ---")
-        print(json.dumps(npa_records[0], indent=2))
-        print("\n--- Sample CIBIL ---")
-        print(json.dumps(cibil_records[0], indent=2))
-        if aml_alerts:
-            print("\n--- Sample AML Alert ---")
-            print(json.dumps(aml_alerts[0], indent=2))
+        for txn in transactions[:5]:
+            print(json.dumps(txn, indent=2))
+        print(f"... and {len(transactions) - 5} more")
         return
 
-    # --- Publish to Kafka ---
-    kafka_password = os.environ.get("KAFKA_PASSWORD", "")
-    if not kafka_password:
-        print("ERROR: Set KAFKA_PASSWORD environment variable first")
-        print("  export KAFKA_PASSWORD='your-password'")
-        sys.exit(1)
-
+    # Publish to Kafka
     try:
         from kafka import KafkaProducer
 
         producer = KafkaProducer(
-            bootstrap_servers=os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "my-cluster-kafka-bootstrap:9092"),
-            security_protocol=os.environ.get("KAFKA_SECURITY_PROTOCOL", "SASL_PLAINTEXT"),
-            sasl_mechanism=os.environ.get("KAFKA_SASL_MECHANISM", "SCRAM-SHA-512"),
-            sasl_plain_username=os.environ.get("KAFKA_USERNAME", "app-user"),
-            sasl_plain_password=kafka_password,
+            bootstrap_servers="my-cluster-kafka-bootstrap:9092",
+
+            # 👇 ADD THIS BLOCK
+            security_protocol="SASL_PLAINTEXT",  # or SASL_SSL if TLS enabled
+            sasl_mechanism="SCRAM-SHA-512",
+            sasl_plain_username="app-user",
+            sasl_plain_password="bwDqbYGrgC2AKOMuthoUu7Ckkj8tNjtB",
+
             value_serializer=lambda v: json.dumps(v).encode("utf-8"),
             key_serializer=lambda k: k.encode("utf-8"),
+
             acks="all",
             retries=3,
             batch_size=32768,
             linger_ms=10,
+            api_version_auto_timeout_ms=30000,
             request_timeout_ms=60000,
-            compression_type="gzip",
-        )
 
-        start = time.time()
+            # 🔥 bonus improvement
+            compression_type="gzip"
+)
 
-        # Publish all 5 topics
+        # Publish transactions
         for txn in transactions:
-            producer.send("finacle-transactions", key=txn["txn_id"], value=txn)
+            producer.send(
+                "finacle-transactions",
+                key=txn["txn_id"],
+                value=txn,
+            )
 
-        for cust in customers:
-            producer.send("finacle-customers", key=cust["customer_id"], value=cust)
-
+        # Publish AML alerts
         for alert in aml_alerts:
-            producer.send("aml-alerts", key=alert["alert_id"], value=alert)
-
-        for npa in npa_records:
-            producer.send("npa-report", key=npa["loan_id"], value=npa)
-
-        for cibil in cibil_records:
-            producer.send("cibil-bureau", key=cibil["report_id"], value=cibil)
+            producer.send(
+                "aml-alerts",
+                key=alert["alert_id"],
+                value=alert,
+            )
 
         producer.flush()
+        start = time.time()
         elapsed = time.time() - start
 
-        total_msgs = len(transactions) + len(customers) + len(aml_alerts) + len(npa_records) + len(cibil_records)
-        print(f"\nPublished to Kafka ({elapsed:.2f}s, {total_msgs / elapsed:.0f} msg/s):")
-        print(f"  finacle-transactions: {len(transactions)} messages")
-        print(f"  finacle-customers:    {len(customers)} messages")
-        print(f"  aml-alerts:           {len(aml_alerts)} messages")
-        print(f"  npa-report:           {len(npa_records)} messages")
-        print(f"  cibil-bureau:         {len(cibil_records)} messages")
-        print(f"  TOTAL:                {total_msgs} messages")
+        print(f"\nPublished to Kafka:")
+        print(f"  Transactions: {len(transactions)} messages to 'finacle-transactions'")
+        print(f"  AML Alerts:   {len(aml_alerts)} messages to 'aml-alerts'")
+        print(f"  Time:         {elapsed:.2f}s")
+        print(f"  Throughput:   {len(transactions) / elapsed:.0f} msg/s")
 
     except Exception as e:
         print(f"ERROR: {e}. Falling back to writing JSON files...")
         import tempfile
         tmpdir = tempfile.gettempdir()
-        all_data = {
-            "transactions": transactions,
-            "customers": customers,
-            "aml_alerts": aml_alerts,
-            "npa_records": npa_records,
-            "cibil_records": cibil_records,
-        }
-        for name, records in all_data.items():
-            filepath = os.path.join(tmpdir, f"{name}.json")
-            with open(filepath, "w") as f:
-                for rec in records:
-                    f.write(json.dumps(rec) + "\n")
-            print(f"  Written {len(records)} records to {filepath}")
+        with open(os.path.join(tmpdir, "transactions.json"), "w") as f:
+            for txn in transactions:
+                f.write(json.dumps(txn) + "\n")
+        with open(os.path.join(tmpdir, "aml_alerts.json"), "w") as f:
+            for alert in aml_alerts:
+                f.write(json.dumps(alert) + "\n")
+        print(f"Written to {tmpdir}\\transactions.json and {tmpdir}\\aml_alerts.json")
 
 
 if __name__ == "__main__":
