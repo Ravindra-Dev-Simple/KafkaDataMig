@@ -168,11 +168,11 @@ TOPIC_CONFIG = {
 
 def get_kafka_options():
     """Build Kafka source options from environment."""
-    bootstrap = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "my-cluster-kafka-bootstrap:9092")
-    protocol = os.environ.get("KAFKA_SECURITY_PROTOCOL", "SASL_PLAINTEXT")
+    bootstrap = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "my-cluster-kafka-bootstrap:9093")
+    protocol = os.environ.get("KAFKA_SECURITY_PROTOCOL", "SASL_SSL")
     mechanism = os.environ.get("KAFKA_SASL_MECHANISM", "SCRAM-SHA-512")
     username = os.environ.get("KAFKA_USERNAME", "app-user")
-    password = os.environ.get("KAFKA_PASSWORD", "")
+    password = os.environ.get("KAFKA_PASSWORD", "bwDqbYGrgC2AKOMuthoUu7Ckkj8tNjtB")
 
     jaas_config = (
         f'org.apache.kafka.common.security.scram.ScramLoginModule required '
