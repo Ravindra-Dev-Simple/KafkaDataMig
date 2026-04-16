@@ -160,9 +160,7 @@ SCHEMA_NPA = StructType([
 TOPIC_CONFIG = {
     "finacle-transactions": (SCHEMA_TRANSACTIONS, "lakehouse.bronze.finacle_transactions", "txn_id"),
     "finacle-customers":    (SCHEMA_CUSTOMERS,    "lakehouse.bronze.finacle_customers",    "customer_id"),
-    "aml-alerts":           (SCHEMA_AML_ALERTS,   "lakehouse.bronze.aml_alerts",           "alert_id"),
-    "cibil-bureau":         (SCHEMA_CIBIL,        "lakehouse.bronze.cibil_bureau",          "report_id"),
-    "npa-report":           (SCHEMA_NPA,           "lakehouse.bronze.npa_report",            "loan_id"),
+    "aml-alerts":           (SCHEMA_AML_ALERTS,   "lakehouse.bronze.aml_alerts",           "alert_id")
 }
 
 
