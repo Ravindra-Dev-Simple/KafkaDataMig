@@ -187,14 +187,19 @@ def get_kafka_options():
     }
 
 
+        # .config("spark.sql.catalog.lakehouse.catalog-impl",
+        #         "org.apache.iceberg.nessie.NessieCatalog") \
+        # .config("spark.sql.catalog.lakehouse.uri", nessie_uri) \
+        # .config("spark.sql.catalog.lakehouse.ref", nessie_ref) \
+
 def create_spark_session():
     """Create SparkSession with Iceberg + MinIO configuration."""
     minio_endpoint = os.environ.get("MINIO_ENDPOINT", "http://minio-api.lakehouse-data.svc.cluster.local:9000")
     minio_access_key = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
     minio_secret_key = os.environ.get("MINIO_SECRET_KEY", "MyStr0ngP@ssw0rd123")
     warehouse_path = os.environ.get("ICEBERG_WAREHOUSE", "s3a://lakehouse-warehouse/warehouse")
-    nessie_uri = os.environ.get("NESSIE_URI", "http://nessie:19120/api/v2")
-    nessie_ref = os.environ.get("NESSIE_REF", "main")
+    # nessie_uri = os.environ.get("NESSIE_URI", "http://nessie:19120/api/v2")
+    # nessie_ref = os.environ.get("NESSIE_REF", "main")
 
     spark = SparkSession.builder \
         .appName("KafkaToIcebergConsumer") \
@@ -203,10 +208,6 @@ def create_spark_session():
                 "org.projectnessie.spark.extensions.NessieSparkSessionExtensions") \
         .config("spark.sql.catalog.lakehouse",
                 "org.apache.iceberg.spark.SparkCatalog") \
-        .config("spark.sql.catalog.lakehouse.catalog-impl",
-                "org.apache.iceberg.nessie.NessieCatalog") \
-        .config("spark.sql.catalog.lakehouse.uri", nessie_uri) \
-        .config("spark.sql.catalog.lakehouse.ref", nessie_ref) \
         .config("spark.sql.catalog.lakehouse.warehouse", warehouse_path) \
         .config("spark.sql.catalog.lakehouse.io-impl",
                 "org.apache.iceberg.aws.s3.S3FileIO") \
