@@ -185,7 +185,8 @@ def get_kafka_options():
         "startingOffsets": "earliest",
         "failOnDataLoss": "false",
     }
-
+   # nessie_uri = os.environ.get("NESSIE_URI", "http://nessie:19120/api/v2")
+    # nessie_ref = os.environ.get("NESSIE_REF", "main")
 
         # .config("spark.sql.catalog.lakehouse.catalog-impl",
         #         "org.apache.iceberg.nessie.NessieCatalog") \
@@ -198,8 +199,6 @@ def create_spark_session():
     minio_access_key = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
     minio_secret_key = os.environ.get("MINIO_SECRET_KEY", "MyStr0ngP@ssw0rd123")
     warehouse_path = os.environ.get("ICEBERG_WAREHOUSE", "s3a://lakehouse-warehouse/warehouse")
-    # nessie_uri = os.environ.get("NESSIE_URI", "http://nessie:19120/api/v2")
-    # nessie_ref = os.environ.get("NESSIE_REF", "main")
 
     spark = SparkSession.builder \
     .appName("KafkaToIcebergConsumer") \
