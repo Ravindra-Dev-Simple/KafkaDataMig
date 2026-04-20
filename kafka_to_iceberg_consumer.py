@@ -56,28 +56,28 @@ SCHEMA_TRANSACTIONS = StructType([
     StructField("ref_number", StringType()),
 ])
 
-SCHEMA_CUSTOMERS = StructType([
-    StructField("customer_id", StringType()),
-    StructField("name", StringType()),
-    StructField("pan", StringType()),
-    StructField("aadhaar_masked", StringType()),
-    StructField("mobile", StringType()),
-    StructField("email", StringType()),
-    StructField("dob", StringType()),
-    StructField("gender", StringType()),
-    StructField("kyc_status", StringType()),
-    StructField("kyc_date", StringType()),
-    StructField("risk_category", StringType()),
-    StructField("branch_code", StringType()),
-    StructField("account_type", StringType()),
-    StructField("account_number", StringType()),
-    StructField("account_open_date", StringType()),
-    StructField("occupation", StringType()),
-    StructField("annual_income", StringType()),
-    StructField("address_city", StringType()),
-    StructField("address_state", StringType()),
-    StructField("nominee_name", StringType()),
-])
+# SCHEMA_CUSTOMERS = StructType([
+#     StructField("customer_id", StringType()),
+#     StructField("name", StringType()),
+#     StructField("pan", StringType()),
+#     StructField("aadhaar_masked", StringType()),
+#     StructField("mobile", StringType()),
+#     StructField("email", StringType()),
+#     StructField("dob", StringType()),
+#     StructField("gender", StringType()),
+#     StructField("kyc_status", StringType()),
+#     StructField("kyc_date", StringType()),
+#     StructField("risk_category", StringType()),
+#     StructField("branch_code", StringType()),
+#     StructField("account_type", StringType()),
+#     StructField("account_number", StringType()),
+#     StructField("account_open_date", StringType()),
+#     StructField("occupation", StringType()),
+#     StructField("annual_income", StringType()),
+#     StructField("address_city", StringType()),
+#     StructField("address_state", StringType()),
+#     StructField("nominee_name", StringType()),
+# ])
 
 # SCHEMA_AML_ALERTS = StructType([
 #     StructField("alert_id", StringType()),
@@ -158,9 +158,9 @@ SCHEMA_CUSTOMERS = StructType([
 
 # Topic → (schema, iceberg_table, key_column)
 TOPIC_CONFIG = {
-    "finacle-transactions": (SCHEMA_TRANSACTIONS, "lakehouse.bronze.finacle_transactions", "txn_id"),
-    "finacle-customers":    (SCHEMA_CUSTOMERS,    "lakehouse.bronze.finacle_customers",    "customer_id"),
-    "aml-alerts":           (SCHEMA_AML_ALERTS,   "lakehouse.bronze.aml_alerts",           "alert_id")
+    "finacle-transactions": (SCHEMA_TRANSACTIONS, "lakehouse.bronze.finacle_transactions", "txn_id")
+    # "finacle-customers":    (SCHEMA_CUSTOMERS,    "lakehouse.bronze.finacle_customers",    "customer_id"),
+    # "aml-alerts":           (SCHEMA_AML_ALERTS,   "lakehouse.bronze.aml_alerts",           "alert_id")
 }
 
 
@@ -193,13 +193,27 @@ def create_spark_session():
     minio_access_key = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
     minio_secret_key = os.environ.get("MINIO_SECRET_KEY", "MyStr0ngP@ssw0rd123")
     warehouse_path = os.environ.get("ICEBERG_WAREHOUSE", "s3a://lakehouse-warehouse/warehouse")
+    nessie_uri = os.environ.get("NESSIE_URI", "http://nessie:19120/api/v2")
+    nessie_ref = os.environ.get("NESSIE_REF", "main")
 
     spark = SparkSession.builder \
         .appName("KafkaToIcebergConsumer") \
-        .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
-        .config("spark.sql.catalog.lakehouse", "org.apache.iceberg.spark.SparkCatalog") \
-        .config("spark.sql.catalog.lakehouse.type", "hadoop") \
+        .config("spark.sql.extensions",
+                "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,"
+                "org.projectnessie.spark.extensions.NessieSparkSessionExtensions") \
+        .config("spark.sql.catalog.lakehouse",
+                "org.apache.iceberg.spark.SparkCatalog") \
+        .config("spark.sql.catalog.lakehouse.catalog-impl",
+                "org.apache.iceberg.nessie.NessieCatalog") \
+        .config("spark.sql.catalog.lakehouse.uri", nessie_uri) \
+        .config("spark.sql.catalog.lakehouse.ref", nessie_ref) \
         .config("spark.sql.catalog.lakehouse.warehouse", warehouse_path) \
+        .config("spark.sql.catalog.lakehouse.io-impl",
+                "org.apache.iceberg.aws.s3.S3FileIO") \
+        .config("spark.sql.catalog.lakehouse.s3.endpoint", minio_endpoint) \
+        .config("spark.sql.catalog.lakehouse.s3.path-style-access", "true") \
+        .config("spark.sql.catalog.lakehouse.s3.access-key-id", minio_access_key) \
+        .config("spark.sql.catalog.lakehouse.s3.secret-access-key", minio_secret_key) \
         .config("spark.hadoop.fs.s3a.endpoint", minio_endpoint) \
         .config("spark.hadoop.fs.s3a.access.key", minio_access_key) \
         .config("spark.hadoop.fs.s3a.secret.key", minio_secret_key) \
