@@ -185,8 +185,7 @@ def get_kafka_options():
         "startingOffsets": "earliest",
         "failOnDataLoss": "false",
     }
-   # nessie_uri = os.environ.get("NESSIE_URI", "http://nessie:19120/api/v2")
-    # nessie_ref = os.environ.get("NESSIE_REF", "main")
+
 
         # .config("spark.sql.catalog.lakehouse.catalog-impl",
         #         "org.apache.iceberg.nessie.NessieCatalog") \
@@ -199,6 +198,8 @@ def create_spark_session():
     minio_access_key = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
     minio_secret_key = os.environ.get("MINIO_SECRET_KEY", "MyStr0ngP@ssw0rd123")
     warehouse_path = os.environ.get("ICEBERG_WAREHOUSE", "s3a://lakehouse-warehouse/warehouse")
+    nessie_uri = os.environ.get("NESSIE_URI", "http://nessie.lakehouse-catalog.svc:19120/api/v2")
+    nessie_ref = os.environ.get("NESSIE_REF", "main")
 
     spark = SparkSession.builder \
     .appName("KafkaToIcebergConsumer") \
@@ -206,7 +207,10 @@ def create_spark_session():
             "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
     .config("spark.sql.catalog.lakehouse",
             "org.apache.iceberg.spark.SparkCatalog") \
-    .config("spark.sql.catalog.lakehouse.type", "hadoop") \
+    .config("spark.sql.catalog.lakehouse.catalog-impl",
+                "org.apache.iceberg.nessie.NessieCatalog") \
+    .config("spark.sql.catalog.lakehouse.uri", nessie_uri) \
+    .config("spark.sql.catalog.lakehouse.ref", nessie_ref) \
     .config("spark.sql.catalog.lakehouse.warehouse", warehouse_path) \
     .config("spark.sql.catalog.lakehouse.io-impl",
             "org.apache.iceberg.aws.s3.S3FileIO") \
@@ -265,7 +269,7 @@ def process_batch(spark, kafka_options, topic, schema, iceberg_table, key_column
         .tableProperty("format-version", "2") \
         .createOrReplace()
 
-    print(f"  Written to {iceberg_table}: {row_count} rows")
+    print(f"Written to {iceberg_table}: {row_count} rows")
     return row_count
 
 

@@ -128,7 +128,6 @@ def section_counts(conn):
         GROUP BY kafka_topic
     """, "Kafka ingestion freshness (finacle_transactions)")
 
-
 def section_txn(conn):
     print("\n" + "#" * 70)
     print("# Bronze — Transaction analytics")
