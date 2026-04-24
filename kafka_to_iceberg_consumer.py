@@ -235,43 +235,77 @@ def create_spark_session():
     return spark
 
 
-def process_batch(spark, kafka_options, topic, schema, iceberg_table, key_column):
-    """Read all available messages from a Kafka topic and write to Iceberg (batch mode)."""
-    print(f"\n--- Processing: {topic} → {iceberg_table} ---")
+def process_batch(spark, kafka_options, topic, schema, iceberg_table) -> int:
+    """One topic ka batch — read all available, APPEND to Iceberg+Nessie."""
+    from pyspark.sql.functions import col, from_json, current_timestamp, lit
 
-    # Read from Kafka
-    df_raw = spark.read \
-        .format("kafka") \
-        .options(**kafka_options) \
-        .option("subscribe", topic) \
+ 
+
+    # ---- Read from Kafka ----
+    df_raw = (
+        spark.read
+        .format("kafka")
+        .options(**kafka_options)
+        .option("subscribe", topic)
         .load()
+    )
 
-    if df_raw.count() == 0:
-        print(f"  No messages found in topic '{topic}'")
+    msg_count = df_raw.count()
+    if msg_count == 0:
         return 0
 
-    # Parse JSON value
-    df_parsed = df_raw \
-        .selectExpr("CAST(key AS STRING) as kafka_key", "CAST(value AS STRING) as json_value") \
+    # ---- Parse JSON ----
+    df_parsed = (
+        df_raw
+        .selectExpr("CAST(key AS STRING) as kafka_key",
+                    "CAST(value AS STRING) as json_value")
         .select(
             col("kafka_key"),
             from_json(col("json_value"), schema).alias("data")
-        ) \
-        .select("data.*") \
-        .withColumn("_ingestion_ts", current_timestamp()) \
+        )
+        .select("data.*")
+        .withColumn("_ingestion_ts", current_timestamp())
         .withColumn("_source", lit("kafka"))
+    )
 
     row_count = df_parsed.count()
-    print(f"  Parsed {row_count} messages")
 
-    # Write to Iceberg Bronze table
-    df_parsed.writeTo(iceberg_table) \
-        .tableProperty("format-version", "2") \
-        .createOrReplace()
+    # ---- Write to Iceberg (with Nessie registration) ----
+    # Check if table already exists in Nessie catalog
+    try:
+        table_exists = spark.catalog.tableExists(iceberg_table)
 
-    print(f"Written to {iceberg_table}: {row_count} rows")
+    except Exception as e:
+
+        table_exists = False
+
+    if not table_exists:
+        # First time — CREATE the table (registers in Nessie)
+ 
+        (
+            df_parsed.writeTo(iceberg_table)
+            .tableProperty("format-version", "2")
+            .tableProperty("write.format.default", "parquet")
+            .tableProperty("write.parquet.compression-codec", "snappy")
+            .create()
+        )
+
+    else:
+        # Subsequent runs — APPEND (preserves history)
+
+        df_parsed.writeTo(iceberg_table).append()
+
+
+
+
+    # ---- Verify Nessie registration ----
+    try:
+        verify_count = spark.table(iceberg_table).count()
+
+    except Exception as e:
+        return "Files in MinIO but NOT registered in Nessie!"
+
     return row_count
-
 
 def process_streaming(spark, kafka_options, topic, schema, iceberg_table, key_column, checkpoint_dir):
     """Start a streaming query that continuously reads from Kafka and writes to Iceberg."""

@@ -30,7 +30,7 @@ from trino.exceptions import TrinoQueryError, TrinoUserError
 # ----------------------------------------------------------------
 # Config from environment (with in-cluster defaults)
 # ----------------------------------------------------------------
-TRINO_HOST        = os.environ.get("TRINO_HOST", "jdbc:trino://trino.lakehouse-catalog.svc:8080")
+TRINO_HOST        = os.environ.get("TRINO_HOST", "trino.lakehouse-catalog.svc:8080")
 TRINO_PORT        = int(os.environ.get("TRINO_PORT", "8080"))
 TRINO_USER        = os.environ.get("TRINO_USER", "admin")
 TRINO_CATALOG     = os.environ.get("TRINO_CATALOG", "iceberg")
